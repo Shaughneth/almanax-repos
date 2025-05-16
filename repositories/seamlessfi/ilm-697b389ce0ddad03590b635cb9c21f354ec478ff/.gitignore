@@ -1,0 +1,32 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts
+deployed-contracts.json
+
+# Foundry files
+cache_forge
+out
+broadcast
+
+# mac OS
+**/.DS_Store
+
+# Compiler files (Foundry cache and compiled output)
+cache/
+out/
+
+# Makefile extension output files
+.vscode/configurationCache.log
+
+# pnpm
+pnpm-lock.yaml
+
+# simulation output
+test/integration/output

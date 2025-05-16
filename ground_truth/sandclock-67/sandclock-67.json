@@ -1,0 +1,214 @@
+{
+    "title": "Sandclock contest",
+    "sponsor": "Sandclock",
+    "slug": "2022-01-sandclock",
+    "date": "2022-02-23",
+    "contest": "67",
+    "findings": [
+        {
+            "id": "H-01",
+            "title": "`forceUnsponsor()` may open a window for attackers to manipulate the `_totalShares` and freeze users' funds at a certain deposit amount",
+            "description": "When `sponsorAmount > totalUnderlying()`, the contract will transfer `totalUnderlying()` to `sponsorToTransfer`, even if there are other depositors and `totalShares` > 0. After that, and before others despoiting into the Vault, the Attacker can send `1 wei` underlying token, then cal `deposit()` with 0.1 \\* 1e18 , since `newShares  = (_amount * _totalShares) / _totalUnderlyingMinusSponsored` and `_totalUnderlyingMinusSponsored` is `1`, with a tiny amount of underlying token, `newShares` will become extremly large. When the value of `totalShares` is manipulated precisely, the attacker can plant a bomb, and the contract will not work when the deposit/withdraw amount reaches a certain value, freezing the user's funds.",
+            "severity": "High",
+            "function": "forceUnsponsor",
+            "file": "Vault.sol",
+            "bug_type": "Erroneous Accounting"
+        },
+        {
+            "id": "H-02",
+            "title": "Withdrawers can get more value returned than expected with reentrant call",
+            "description": "The impact of this is that users can get significantly more UST withdrawn than they would be alotted if they had done non-reentrant withdraw calls. #### Proof of Concept:\n Assume the vault has 100 UST in it. The attacker makes two deposits of 100UST and waits for them to be withdrawable. The attacker triggers a withdraw one of their deposit positions. Since the attacker is the claimer, the vault will call back to the attacker. Inside `onDepositBurned`, trigger another 100 UST deposit. Since `claimers.onWithdraw` has already been called, reducing the amount of shares, but the UST hasn't been transferred yet, the vault will compute the amount of UST to be withdrawn based on an unexpected value for `_totalUnderlyingMinusSponsored` (300). After the attack, the attacker will have significantly more than if they had withdrawn without reentrancy.",
+            "severity": "High",
+            "function": "withdraw",
+            "file": "Vault.sol",
+            "bug_type": "Reentrancy"
+        },
+        {
+            "id": "H-03",
+            "title": "Vaults with non-UST underlying asset vulnerable to flash loan attack on curve pool",
+            "description": "In short, the `NonUSTStrategy` is vulnerable to attacks by flash loans on curve pools. Here's an outline of the attack:*   Assume there is a vault with DAI underlying and a `NonUSTStrategy` with a DAI / UST curve pool *   Take out a flash loan of DAI *   Exchange a ton of DAI for UST *   The exchange rate from DAI to UST has gone up (!!) *   Withdraw or deposit from vault with more favorable terms than market *   Transfer back UST to DAI *   Repay flash loan",
+            "severity": "High",
+            "function": "doHardWork",
+            "file": "NonUSTStrategy.sol",
+            "bug_type": "Price Oracle Manipulation"
+        },
+        {
+            "id": "H-04",
+            "title": "deposit() function is open to reentrancy attacks",
+            "description": "In `Vault.sol` the `deposit()` function is left wide open to reentrancy attacks.  The function eventually calls `\\_createDeposit() => \\_createClaim()` which calls `depositors.mint()` which will then mint an NFT.  When the NFT is minted the sender will receive a callback which can then be used to call the `deposit()` function again before execution is finished.  An attacker can do this minting multiple NFT's for themselves.  `claimers.mint()` is also called in the same function which can also be used to call back into the deposit function before execution is complete.  Since there are several state updates before and after NFT's are minted this can be used to further manipulate the protocol like with `newShares` which is called before minting.  This is not counting what an attacker can do with cross function reentrancy entering into several other protocol functions (like withdraw) before code execution is complete further manipulating the system.",
+            "severity": "High",
+            "function": "deposit",
+            "file": "Vault.sol",
+            "bug_type": "Reentrancy"
+        },
+        {
+            "id": "H-05",
+            "title": "sponsor() function is open to reentrancy attacks",
+            "description": "In `Vault.sol` the `sponsor()` function does not have a reentrancy guard allowing an attacker to reenter the function because the `depositors.mint()` function has as callback to the msg.sender.  Since there are state updates after the call to `depositors.mint()` function this is especially dangerous.  An attacker can make it so the totalSponsored amount is only updated once after calling `mint()` several times since the update takes place after the callback.  The same will be true for the Sponsored event that is emitted.",
+            "severity": "High",
+            "function": "sponsor",
+            "file": "Vault.sol",
+            "bug_type": "Reentrancy"
+        },
+        {
+            "id": "M-01",
+            "title": "Late users will take more losses than expected when the underlying contract suffers investment losses",
+            "description": "Even though it's unlikely in practice, but in theory, the underlying contract (`EthAnchor`) may suffer investment losses and causing decreasing of the PPS of AUST token. (There are codes that considered this situation in the codebase. eg. handling of `depositShares > claimerShares`). However, when this happens, the late users will suffer more losses than expected than the users that withdraw earlier. The last few users may lose all their funds while the first users can get back 100% of their deposits.",
+            "severity": "Medium",
+            "function": "withdraw",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-02",
+            "title": "`NonUSTStrategy.sol` Improper handling of swap fees allows attacker to steal funds from other users",
+            "description": "`NonUSTStrategy` will swap the deposited non-UST assets into UST before depositing to EthAnchor. However, the swap fee is not attributed to the depositor correctly like many other yield farming vaults involving swaps (`ZapIn`). An attacker can exploit it for the swap fees paid by other users by taking a majority share of the liquidity pool.",
+            "severity": "Medium",
+            "function": null,
+            "file": "NonUSTStrategy.sol"
+        },
+        {
+            "id": "M-03",
+            "title": "Centralization Risk: Funds can be frozen when critical key holders lose access to their keys",
+            "description": "The current implementation requires trusted key holders (`isTrusted[msg.sender]`) to send transactions (`initRedeemStable()`) to initialize withdrawals from `EthAnchor` before the users can withdraw funds from the contract. This introduces a high centralization risk, which can cause funds to be frozen in the contract if the key holders lose access to their keys.",
+            "severity": "Medium",
+            "function": "initRedeemStable",
+            "file": "BaseStrategy.sol"
+        },
+        {
+            "id": "M-04",
+            "title": "unsponsor, claimYield and withdraw might fail unexpectedly",
+            "description": "`totalUnderlying()` includes the invested assets, they are not in the contract balance. when a user calls withdraw, claimYield or unsponsor, the system might not have enough assets in the balance and the transfer would fail. Especially, force unsponsor will always fail, because it tries to transfer the entire `totalUnderlying()`, which the system doesn't have:",
+            "severity": "Medium",
+            "function": "unsponsor",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-05",
+            "title": "Add a timelock to `BaseStrategy:setPerfFeePct`",
+            "description": "Adding a timelock to critical functions would increase user trust and mitigate risks of sudden parameter changes.",
+            "severity": "Medium",
+            "function": "setPerfFeePct",
+            "file": "BaseStrategy.sol"
+        },
+        {
+            "id": "M-06",
+            "title": "`totalUnderlyingMinusSponsored()` may revert on underflow and malfunction the contract",
+            "description": "The function may revert if `sponsorAmount > totalUnderlying()`, causing contract malfunctions.",
+            "severity": "Medium",
+            "function": "totalUnderlyingMinusSponsored",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-07",
+            "title": "Vault can't receive deposits if underlying token charges fees on transfer",
+            "description": "Fee-charging tokens cause deposit failures due to balance mismatch checks.",
+            "severity": "Medium",
+            "function": "deposit",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-08",
+            "title": "Ensure `_minLockPeriod > 0` to prevent flash loan attacks",
+            "description": "Zero `_minLockPeriod` enables flash loan attacks that exploit the protocol's price calculation mechanism.",
+            "severity": "Medium",
+            "function": "constructor",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-09",
+            "title": "No use of `_safeMint()` as safeguard for users",
+            "description": "Using `_mint()` instead of `_safeMint()` in the protocol may allow unintended behaviors and vulnerabilities.",
+            "severity": "Medium",
+            "function": "deposit",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-10",
+            "title": "No setter for `exchangeRateFeeder`, whose address might change in future",
+            "description": "Without a setter, updates to the `exchangeRateFeeder` address might cause incorrect calculations and issues.",
+            "severity": "Medium",
+            "function": "constructor",
+            "file": "BaseStrategy.sol"
+        },
+        {
+            "id": "M-11",
+            "title": "Changing a strategy can be bricked",
+            "description": "The `setStrategy` function requires `strategy.investedAssets() == 0`. This can be exploited by griefers who send a small amount of assets to the strategy, preventing it from being replaced.",
+            "severity": "Medium",
+            "function": "setStrategy",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "M-12",
+            "title": "`investedAssets()` does not take into consideration the performance fee charged on strategy withdrawals",
+            "description": "The `investedAssets()` calculation does not account for performance fees, allowing users to avoid paying their fair share by withdrawing before fees are applied.",
+            "severity": "Medium",
+            "function": "investedAssets",
+            "file": "BaseStrategy.sol"
+        },
+        {
+            "id": "M-13",
+            "title": "Incompatibility with rebasing/deflationary/inflationary tokens",
+            "description": "The strategy contracts do not support tokens that rebase, inflate, or deflate during transfers or over time, which may lead to incorrect calculations and fund losses.",
+            "severity": "Medium",
+            "function": "doHardWork",
+            "file": "BaseStrategy.sol"
+        },
+        {
+            "id": "M-14",
+            "title": "A single malicious trusted account can takeover parent contract",
+            "description": "The `requiresTrust` modifier allows trusted accounts to add or remove other trusted accounts. If a trusted account is compromised or turns malicious, they can take full control of the parent contract.",
+            "severity": "Medium",
+            "function": "setIsTrusted",
+            "file": "Trust.sol"
+        },
+        {
+            "id": "M-15",
+            "title": "Check `_to` is not empty",
+            "description": "Functions like `claimYield`, `_withdraw`, and `_unsponsor` should validate that the `_to` address is not empty (0x0) to prevent accidental burns.",
+            "severity": "Medium",
+            "function": "claimYield",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "L-01",
+            "title": "`NonUSTStrategy.sol` A malicious user/attacker can game the system by `claimYield()` or `withdraw()` based on price changes",
+            "description": "Price fluctuations can be exploited by attackers to gain unfair advantages during yield claims or withdrawals.",
+            "severity": "Low",
+            "function": "claimYield",
+            "file": "NonUSTStrategy.sol"
+        },
+        {
+            "id": "L-02",
+            "title": "Incorrect share accounting",
+            "description": "Inaccurate share calculations may lead to unintended distribution of assets and imbalances.",
+            "severity": "Low",
+            "function": "doHardWork",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "L-03",
+            "title": "Some strategy functions can't be called from the Vault",
+            "description": "Certain functions in the strategy are not accessible from the vault, leading to potential usability issues.",
+            "severity": "Low",
+            "function": "strategy",
+            "file": "BaseStrategy.sol"
+        },
+        {
+            "id": "L-04",
+            "title": "Lack of checks",
+            "description": "Missing validations in certain parts of the codebase can lead to unintended behaviors or vulnerabilities.",
+            "severity": "Low",
+            "function": "deposit",
+            "file": "Vault.sol"
+        },
+        {
+            "id": "L-05",
+            "title": "Unclear require statement",
+            "description": "Ambiguous require messages make it harder for developers and users to debug issues effectively.",
+            "severity": "Low",
+            "function": "constructor",
+            "file": "Vault.sol"
+        }
+    ]
+}

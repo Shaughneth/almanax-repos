@@ -1,0 +1,280 @@
+{
+    "title": "Seamless ILM Security Audit",
+    "sponsor": "Seamless Protocol",
+    "slug": "seamless-ilm-security-audit",
+    "date": "April 5, 2024",
+    "contest": "N/A",
+    "findings": [
+        {
+            "id": "C-1",
+            "title": "LoanLogic returns the USD value of total collateral in all tokens, not just the collateral token",
+            "description": "Whenever the strategy needs to perform any operation (rebalance, withdraw, deposit,...), it invokes the method getLoanState from the LoanLogic library to get the current value (in USD) of the total collateral and total debt of the strategy in the Seamless pool. Examining the code, we note that the strategy always implicitly assumes that the value of the total collateral reported by the pool is the value of the underlying collateral asset. However, this is not necessarily true. The method getLoanState is a wrapper around AAVE\u2019s calculateUserAccountData method which actually returns the sum of the value of all collaterals (in USD) locked in the pool.",
+            "severity": "Critical",
+            "function": "getLoanState",
+            "file": [
+                "LoanLogic.sol"
+            ],
+            "bug_type": "Erroneous Accounting"
+        },
+        {
+            "id": "C-2",
+            "title": "The logic in UserShareDebt == StrategyDebt is wrong",
+            "description": "The logic of the code branch if (state.debtUSD == shareDebtUSD) is flawed. The strategy wrongly assumes that if UserShareDebt == StrategyDebt then shareEquityUSD = state.collateralUSD - state.debtUSD.",
+            "severity": "Critical",
+            "function": "getLoanState",
+            "file": [
+                "RebalanceLogic.sol",
+                "LoanLogic.sol"
+            ],
+            "bug_type": "Erroneous Accounting"
+        },
+        {
+            "id": "M-1",
+            "title": "Not checking for stale prices",
+            "description": "The ILM code interacts with the price feed via AAVE\u2019s Oracle interface, which is missing a check if the return value indicates stale data. This could lead to stale prices according to the Chainlink documentation.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "AaveOracle.sol"
+            ]
+        },
+        {
+            "id": "M-2",
+            "title": "Missing min/max boundary check",
+            "description": "Chainlink price feeds have in-built minimum & maximum prices they will return. In case of certain incidents, a certain asset\u2019s value falls below the price feed\u2019s minimum price, the price feed will continue to report the incorrect minimum price.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "AaveOracle.sol"
+            ]
+        },
+        {
+            "id": "M-3",
+            "title": "rebalanceNeeded() returns true although rebalance is not required",
+            "description": "rebalanceNeeded() returns true when both collateralUSD and debtUSD are zero, although rebalance is not needed when there is no collateral.",
+            "severity": "Medium",
+            "function": "rebalanceNeeded",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "M-4",
+            "title": "getLoanState() does not check totalDebtUSD",
+            "description": "getLoanState() assigns zero to debtUSD when totalCollateralUSD == 0 without checking totalDebtUSD.",
+            "severity": "Medium",
+            "function": "getLoanState",
+            "file": [
+                "LoanLogic.sol"
+            ]
+        },
+        {
+            "id": "M-5",
+            "title": "Centralization Risk",
+            "description": "There are multiple privileged roles in the code that allow access to critical functions of the ILM, representing a single point of failure.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "LoopStrategy.sol",
+                "Swapper.sol",
+                "WrappedERC20PermissionedDeposit.sol"
+            ]
+        },
+        {
+            "id": "L-1",
+            "title": "Missing check for L2-sequencer state",
+            "description": "The ILM is deployed on Base L2, where the sequencer might go down. In such a situation, the usual flow of DeFi activity on Base is warped, leading to unforeseen consequences.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "L-2",
+            "title": "Replace the overly-complicated logic of the view function",
+            "description": "The view functions estimateSupply and estimateWithdraw are overly complicated and prone to error, with inaccurate approximations.",
+            "severity": "Low",
+            "function": "estimateSupply, estimateWithdraw",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "L-3",
+            "title": "No sanity check in strategy initialization",
+            "description": "There are no sanity checks for collateralRatioTargets and ratioMargin during the initialization of the ILM LoopStrategy, nor a check for the oracle address.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "LoopStrategy.sol"
+            ]
+        },
+        {
+            "id": "L-4",
+            "title": "An attacker can sandwich rebalancing",
+            "description": "MEV is a significant problem in the DeFi space. In the case of ILM, the anticipation of transactions allows manipulation opportunities.",
+            "severity": "Low",
+            "function": "rebalance",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "L-5",
+            "title": "If collateralAmountAsset == 0, we should cancel the rebalancing process",
+            "description": "In cases where the swap results in no collateral tokens, the strategy should not proceed, leading to a loss of equity.",
+            "severity": "Low",
+            "function": "rebalanceUp",
+            "file": [
+                "LoanLogic.sol"
+            ]
+        },
+        {
+            "id": "L-6",
+            "title": "Decimals() should match the Seamless pool configuration",
+            "description": "There is a discrepancy between the decimals used by the ILM code and those by the AAVE pool.",
+            "severity": "Low",
+            "function": "decimals",
+            "file": [
+                "LoopStrategy.sol",
+                "LoanLogic.sol",
+                "RebalanceLogic.sol",
+                "Swapper.sol"
+            ]
+        },
+        {
+            "id": "L-7",
+            "title": "Unnecessary rebalancing can occur and even change the collateral ratio in an undesired direction",
+            "description": "The function rebalanceTo() doesn\u2019t consider the margin, leading to unnecessary rebalancing.",
+            "severity": "Low",
+            "function": "rebalanceTo",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "L-8",
+            "title": "No borrow cap leads to incorrect calculation",
+            "description": "The ILM code does not correctly account for cases when there is no borrow cap, which affects the getAvailableAssetSupply method.",
+            "severity": "Low",
+            "function": "getAvailableAssetSupply",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-1",
+            "title": "Unused storage variable",
+            "description": "LoopStrategyStorage.layout.usdMargin is unused.",
+            "severity": "Informational",
+            "function": "",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-2",
+            "title": "Non-uniform naming convention",
+            "description": "Methods debt() and collateral() should align with the existing naming convention.",
+            "severity": "Informational",
+            "function": "",
+            "file": [
+                "LoopStrategy.sol"
+            ]
+        },
+        {
+            "id": "I-3",
+            "title": "Typo in a comment in L.#17 of RebalanceMath.sol",
+            "description": "Typo corrected from 'debt valut in USD' to 'debt value in USD'.",
+            "severity": "Informational",
+            "function": "",
+            "file": [
+                "RebalanceMath.sol"
+            ]
+        },
+        {
+            "id": "I-4",
+            "title": "Gas optimization - rebalance should exit",
+            "description": "rebalance() should exit rather than revert when rebalance is unnecessary.",
+            "severity": "Informational",
+            "function": "rebalance",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-5",
+            "title": "Safety enhancement - always rebalance after setting CR targets",
+            "description": "The function setCollateralRatioTargets() should include rebalance execution.",
+            "severity": "Informational",
+            "function": "setCollateralRatioTargets",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-6",
+            "title": "Missing input validation",
+            "description": "Ensure that maxForDepositRebalance is greater than or equal to the target.",
+            "severity": "Informational",
+            "function": "setCollateralRatioTargets",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-7",
+            "title": "Type in a function name: getRatioMagin()",
+            "description": "Function name corrected to getRatioMargin().",
+            "severity": "Informational",
+            "function": "getRatioMargin",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-8",
+            "title": "If the strategy is sufficiently in debt, all deposits revert",
+            "description": "If debtUSD exceeds collateralUSD, deposits will revert, preventing liquidation recovery.",
+            "severity": "Informational",
+            "function": "",
+            "file": [
+                "LoopStrategy.sol"
+            ]
+        },
+        {
+            "id": "I-9",
+            "title": "Constants should be defined rather than using magic numbers",
+            "description": "In AerodromeAdapter, use a constant for deadlines instead of hardcoding numbers.",
+            "severity": "Informational",
+            "function": "",
+            "file": [
+                ""
+            ]
+        },
+        {
+            "id": "I-10",
+            "title": "Decimals() should be of type uint8",
+            "description": "Fields for decimals should use uint8 instead of uint256 for performance.",
+            "severity": "Informational",
+            "function": "",
+            "file": [
+                "LoopStrategy.sol",
+                "RebalanceLogic.sol",
+                "ConversionMath.sol",
+                "RebalanceMath.sol"
+            ]
+        },
+        {
+            "id": "I-11",
+            "title": "The computation getMaxBorrowUSD is wrong",
+            "description": "TotalCollateralBase includes all collaterals, overestimating borrowing capacity.",
+            "severity": "Informational",
+            "function": "getMaxBorrowUSD",
+            "file": [
+                ""
+            ]
+        }
+    ]
+}

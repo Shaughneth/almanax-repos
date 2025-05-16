@@ -1,0 +1,5 @@
+{
+  "detectors_to_run": "all",
+  "include_paths": "src/TransactionManager.sol",
+  "exclude_dependencies": true
+}

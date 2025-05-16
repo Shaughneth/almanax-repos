@@ -1,0 +1,16 @@
+include:
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/*.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/oracle-modules/*.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/accounts/*.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/guardians/*.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/abstracts/*.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/asset-modules/StandardERC20AssetModule.sol 
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/asset-modules/UniswapV3/UniswapV3AssetModule.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/asset-modules/AbstractAssetModule.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/asset-modules/AbstractDerivedAssetModule.sol
+- accounts-v2-cd5db77bbcc561c7e8c0486311c95398b9e0e2bc/src/asset-modules/AbstractPrimaryAssetModule.sol
+- lending-v2-239da7a6a1f1f395a506d7e4258b29dd9d32f6ce/src/DebtToken.sol
+- lending-v2-239da7a6a1f1f395a506d7e4258b29dd9d32f6ce/src/Tranche.sol
+- lending-v2-239da7a6a1f1f395a506d7e4258b29dd9d32f6ce/src/LendingPool.sol
+- lending-v2-239da7a6a1f1f395a506d7e4258b29dd9d32f6ce/src/guardians/LendingPoolGuardian.sol 
+- lending-v2-239da7a6a1f1f395a506d7e4258b29dd9d32f6ce/src/Liquidator.sol

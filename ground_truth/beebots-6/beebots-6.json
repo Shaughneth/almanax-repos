@@ -1,0 +1,126 @@
+{
+    "title": "Larva Labs Meebits",
+    "sponsor": "LarvaLabs Meebits",
+    "slug": "2021-04-meebits",
+    "date": "2021-06-30",
+    "contest": "6",
+    "findings": [ 
+        {
+            "id": "H-00",
+            "title": "ERC-721 Enumerable Spec mismatch for index of `tokenByIndex()` function",
+            "description": " Index starts at 0 for token array, but the implementation here requires index to be greater than 0. This will prevent querying of tokens at index 0.  This will impact compatibility with NFT platforms that expect full conformity with ERC-721 specification. Recommend accepting 0 index by changing to `require(index >= 0 && index < TOKEN_LIMIT);`.",
+            "severity": "high",
+            "function": "tokenByIndex",
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-01",
+            "title": "Signature malleability of EVM's `ecrecover` in `verify()`",
+            "description": "EVM's `ecrecover` is susceptible to signature malleability, which allows replay attacks, but that is mitigated here by tracking accepted offers and canceling them (on L645) specifically to prevent replays. However, if any application logic changes, it might make signature malleability a risk for replay attacks.",
+            "severity": "high",
+            "function": "verify()",
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-02",
+            "title": "Arbitrary Transfer of Unowned NFTs",
+            "description": "Due to how the market functions are structured, it is possible to arbitrarily transfer any NFT that is not owned by any address. The function in question is the `tradeValid` function invoked by `acceptTrade` before the trade is performed. It, in turn, validates the signature of a trade via `verify`, which does not account for the behavior of `ecrecover`. When `ecrecover` is invoked with an invalid signature, the zero-address is returned by it, meaning that `verify` will yield `true` for the zero-address as long as the signature provided is invalid. This can be exploited to transfer any NFT whose `idToOwner` is zero, including NFTs that have not been minted yet.",
+            "severity": "high",
+            "function": "acceptTrade()",
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-03",
+            "title": "`Beebots.TradeValid()` Will Erroneously Return True When Maker Is Set To `Address(0)` and `makerIds` Are Set To The `TokenIds` of Unminted Beebot NFTs",
+            "description": "`Beebots.TradeValid()` will erroneously return true when `maker` is set to `address(0)` and `makerIds` are set to the `tokenIds` of unminted beebot NFTs. `Beebots.verify()` returns true no matter what signature is given when signer is set to `address(0)`. This means that `BeeBots.tradeValid()` will erroneously return true when `maker` is set to `address(0)`. Finally, before an NFT has even been minted at all, it is assumed to have an owner of `address(0)` due to the `idToOwner` mapping being initialized to zero for all uninitialized slots, so an attacker can call `tradeValid()` with `maker` set to `address(0)` and `makerIds` set to the `tokenIds` of any unminted `nftIds`, and `tradeValid()` will erroneously return true.",
+            "severity": "high",
+            "function": "",
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-04",
+            "title": "function `tokenByIndex` treats last index as invalid",
+            "description": "NFT indexes start from 0: ```solidity\n// Don't allow a zero index, start counting at 1\nreturn value.add(1);```.  So if there are 30 tokens, indexes would be 1-30. However, function `tokenByIndex` sets such boundaries: ```solidity \n require(index > 0 && index < TOKEN_LIMIT);``` This means that the last token (with index 30 in this case) will not be valid.",
+            "severity": "high",
+            "function": "tokenByIndex",
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-05",
+            "title": "NFT can be minted for free after sale ended",
+            "description": "The `getPrice()` function returned 0 after the sale ended and (```SALE_LIMIT - numSales```) NFT can be minted for free. Without documentation, it's not clear if this is the expected behavior or not. If it's unexpected, it is recommended to revert instead of returning 0. If it's expected behavior, it's possible to create a smart contract and claim all the remaining NFT front-running the regular users.",
+            "severity": "high",
+            "function": "getPrice",
+            "bug_type": "Erroneous Accounting"
+        },
+        {
+            "id": "M-00",
+            "title": "Legacy Function Usage",
+            "description": "The `withdraw` function utilizes the `transfer` invocation, which has a fixed gas stipend and can fail, especially beyond the Berlin fork, which increased the gas costs for first-time invocations of a transfer. The EIP should be sufficient. Recommend using a safe wrapper library, such as the OpenZeppelin `Address` library's `sendValue` function, which forwards sufficient gas for the transfer regardless of the underlying OPCODE gas costs.",
+            "severity": "medium",
+            "function": "withdraw"
+        },
+        {
+            "id": "M-01",
+            "title": "`randomIndex` is not truly random - possibility of predictably minting a specific token Id",
+            "description": "`randomIndex' is not random. Any miner has access to these values: ```solidity\nuint index = uint(keccak256(abi.encodePacked(nonce, msg.sender, block.difficulty, block.timestamp))) % totalSize;\n```. Non-miner attackers could also test the minting random condition until they get the ID they are looking to access. The internal variable `indices` seems to be used to avoid this type of collision. While this makes it less straightforward, there is still the possibility of minting a token with a specific ID. That said, `_addNFToken` is checking if the token is already owned by an address, ensuring a token can't be stolen. Refactoring as suggested below will save gas, make code easier to read and prevent reverts in rare unfortunate occasions of clashes. Recommend not generating random IDs and instead using counters. It makes the code more predictable and easier to read, avoids clashing of IDs, and reduces the need to track minted tokens.",
+            "severity": "medium",
+            "function": "randomIndex"
+        },
+        {
+            "id": "M-02",
+            "title": "instead of `call()`, `transfer()` is used to withdraw the ether",
+            "description": " To withdraw ETH, it uses `transfer()`, this transaction will fail inevitably when: 1. The withdrawer smart contract does not implement a payable function. 2. Withdrawer smart contract does implement a payable fallback which uses more than 2300 gas unit. 3. The withdrawer smart contract implements a payable fallback function that needs less than 2300 gas units but is called through proxy, raising the call's gas usage above 2300.",
+            "severity": "medium",
+            "function": "transfer"
+        },
+
+        {
+            "id": "L-00",
+            "title": "Atypical contract structure affects maintainability and readability",
+            "description": "A typical/recommended contract structure has the variable declarations followed by events instead of the other way around. This affects readability/maintainability and may introduce/persist security issues.\n\nRecommend considering restructuring the contract to place the variable declarations before events.",
+            "severity": "low",
+            "function": null
+        },
+        {
+            "id": "L-01",
+            "title": "Mint can be front-run",
+            "description": "The price of an NFT falls over time which creates a dynamic that one potential buyer wants to wait for the price to drop but not wait too long to avoid hitting the max sale cap.\n\nHowever, any such `mint` call can be observed on public blockchains, and attackers can wait until another person decides to buy at the current price and then frontrun that person.\n\nLegitimate minters can be frontrun and end up with a failed transaction and without the NFT as the max sale limit is reached: `require(numSales < SALE_LIMIT, \"Sale limit reached.\");`.\n\nFront-running is hard to prevent; maybe an auction-style minting process could work where the top `SALE_LIMIT` bids are accepted after the sale duration.",
+            "severity": "low",
+            "function": null
+        },
+        {
+            "id": "L-01",
+            "title": "Missing parameters in `SalesBegin` event of critical `startSale()` function",
+            "description": "Consider including `salesStartTime` and `salesDuration` as parameters in the `SaleBegins` event to allow off-chain tools to track sale launch time and duration, especially given that sale price depends on the time elapsed in the sale.\n\nRecommend adding `salesStartTime` and `salesDuration` as parameters in the `SaleBegins` event of `startSale()` function.",
+            "severity": "low",
+            "function": null
+        },
+        {
+            "id": "L-02",
+            "title": "Incorrect Implementation",
+            "description": "The `tokenByIndex` function appears not to perform correctly as it simply checks its input argument and returns it.\n\nIt is recommended this function be adequately fleshed out or omitted from the codebase to avoid redundant bytecode.",
+            "severity": "low",
+            "function": null
+        },
+        {
+            "id": "L-03",
+            "title": "Missing error messages in require statements of various function",
+            "description": "The use of informative error messages helps troubleshoot exceptional conditions during transaction failures or unexpected behavior. Otherwise, it can be misleading and waste crucial time during exploits or emergency conditions.\n\nWhile many require statements have descriptive error messages, some are missing them.\n\nFor reference, see Note 2 in OpenZeppelin's Audit of Compound Governor Bravo.\n\nRecommend using meaningful error messages which specifically describe the conditional failure in all require statements.",
+            "severity": "low",
+            "function": null
+        },
+        {
+            "id": "L-04",
+            "title": "Missing event in critical `devMint()` function",
+            "description": "The dev/deployer is allowed to mint an unlimited quantity of NFTs without paying arbitrary recipients. This reduces the token balance and affects token availability for other sale participants, and therefore is significant enough to warrant its own event.\n\nRecommend adding an event for `devMint` and emit at the end of `devMint()` function.",
+            "severity": "low"
+        },
+        {
+            "id": "L-05",
+            "title": "SafeMath library asserts instead of reverts",
+            "description": "The implementation of SafeMath performs an `assert` instead of a `revert` on failure. An `assert` will consume all the transaction gas, whereas a `revert`/`require` releases the remaining gas to the transaction sender again. Usually, one wants to try to keep the gas cost for contract failures low and use `assert` only for invariants that should always be true.\n\nRecommend using `require` instead of `assert`.",
+            "severity": "low"
+        }
+    ]
+}

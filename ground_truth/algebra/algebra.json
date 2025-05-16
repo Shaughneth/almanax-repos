@@ -1,0 +1,265 @@
+{
+    "title": "ALGEBRA FARMINGS SECURITY AUDIT REPORT",
+    "sponsor": "Algebra",
+    "slug": "algebra-farmings-audit-2023-05-24",
+    "date": "May 24, 2023",
+    "contest": "Algebra-Farmings",
+    "findings": [
+        {
+            "id": "H-1",
+            "title": "Users' rewards can be lost if the incentive maker adds a new farming with the same key",
+            "description": "If the incentive maker adds a new farming after the previous one was unattached by the pool, then all users' rewards will be lost.",
+            "severity": "High",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ],
+            "bug_type": "ID Uniqueness Violations"
+        },
+        {
+            "id": "H-2",
+            "title": "The reward distributor can send funds to an unattached pool",
+            "description": "There is no check in the addRewards() function that would stop the reward distributor from sending funds to a virtual pool that was unattached from the Algebra pool due to a revert in the crossTo() function.",
+            "severity": "High",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ],
+            "bug_type": "Inconsistent State Updates"
+        },
+        {
+            "id": "H-3",
+            "title": "The creation of the incentive with zero rewards blocks the pool's incentive system",
+            "description": "It's possible to create an incentive with 0 rewards using AlgebraEternalFarming.createEternalFarming(). If there are some bonus rewards for this incentive, they will be stuck forever.",
+            "severity": "High",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ],
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-4",
+            "title": "Unsynchronized positions in NonFungiblePositionManager and AlgebraEternalFarming can be exploited for receiving unfair rewards",
+            "description": "If FarmingCenter._updatePosition reverts internally, NonFungiblePositionManager ignores that revert, leading to unsynchronized positions between actual position and farming position. This allows the tokenId owner to continue collecting higher rewards than deserved.",
+            "severity": "High",
+            "function": "",
+            "file": [
+                "FarmingCenter.sol",
+                "AlgebraEternalFarming.sol"
+            ],
+            "bug_type": "Inconsistent State Updates"
+        },
+        {
+            "id": "H-5",
+            "title": "Virtual pools detached from the corresponding AlgebraPool result in an inconsistent state",
+            "description": "In cases where AlgebraPool connected to VirtualAlgebraPool catches a revert during a call to the crossTo function, the pool will reset its activeIncentive parameter to the 0 address.",
+            "severity": "High",
+            "function": "",
+            "file": [
+                "SwapCalculation.sol"
+            ],
+            "bug_type": "Inconsistent State Updates"
+        },
+        {
+            "id": "M-1",
+            "title": "An incorrect sequence of calls can lead to a revert",
+            "description": "Getting reserves before applying new rewards can lead to a revert on a call of the decreaseRewardsAmount() function.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "M-2",
+            "title": "Rates can be updated for a deactivated farming",
+            "description": "There is no check that the incentive maker can't set non-zero rates for a deactivated pool.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "M-3",
+            "title": "Initialization of the virtualPool should be made earlier",
+            "description": "virtualPool is currently initialized after using it in the check.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "M-4",
+            "title": "Admin can drain all rewards from all incentives",
+            "description": "AlgebraEternalFarming.decreaseRewardsAmount() sends rewards to the address of admin which creates the danger of a rugpull and reduces trust in the incentive system.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-1",
+            "title": "Unused variables",
+            "description": "Several storage variables can be removed.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "FarmingCenter.sol",
+                "VirtualTickManagement.sol",
+                "EternalVirtualPool.sol"
+            ]
+        },
+        {
+            "id": "L-2",
+            "title": "Events missing",
+            "description": "Several functions should emit an event for better UX in possible integrations.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-3",
+            "title": "Unchecked calculations can be dangerous in some places",
+            "description": "There are several places where it is better to not use unchecked calculations.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-4",
+            "title": "If a user transfers NFT, they can lose rewards",
+            "description": "If the user transfer NFT before calling collectRewards, they will lose accrued rewards.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "FarmingCenter.sol"
+            ]
+        },
+        {
+            "id": "L-5",
+            "title": "EternalVirtualPool._distributeRewards() has an unnecessary parameter",
+            "description": "Internal function EternalVirtualPool._distributeRewards() uses the currentTimestamp parameter.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "EternalVirtualPool.sol"
+            ]
+        },
+        {
+            "id": "L-6",
+            "title": "An unnecessary allowed caller in EternalVirtualPool.crossTo()",
+            "description": "EternalVirtualPool.crossTo() is allowed to be called by farmingCenterAddress but it's never called from the farming center.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "EternalVirtualPool.sol"
+            ]
+        },
+        {
+            "id": "L-7",
+            "title": "An unnecessary incentive storage change",
+            "description": "AlgebraEternalFarming._enterFarming() marks incentive as deactivated in storage and after that reverts in case of desynchronization.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-8",
+            "title": "INCENTIVE_MAKER can create an incentive for any IAlgebraPool",
+            "description": "INCENTIVE_MAKER can create an incentive for any IAlgebraPool, not only for the ones created by the factory.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-9",
+            "title": "Anyone can call AlgebraEternalFarming.addRewards()",
+            "description": "AlgebraEternalFarming.addRewards() can be called by any address, allowing anyone to manipulate the size of the total rewards.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-10",
+            "title": "An incorrect (misspelled) word in the comment",
+            "description": "At line VirtualTickManagement.sol#L134 a misspelled word is used.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "VirtualTickManagement.sol"
+            ]
+        },
+        {
+            "id": "L-11",
+            "title": "An unnecessary type cast",
+            "description": "Variable factory is cast to the IAlgebraFactory type, but it already has the IAlgebraFactory type by definition.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-12",
+            "title": "The detached Incentive cannot be deactivated manually",
+            "description": "If the virtual pool is detached from its corresponding algebra pool, it's impossible for the incentive manager to manually change its status due to a check.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-13",
+            "title": "A redundant call to _updatePositionInVirtualPool in the _updatePosition function",
+            "description": "The call to _updatePositionInVirtualPool can be replaced with the distributeRewards call since liquidityDelta argument is set to 0 at that point.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-14",
+            "title": "getInnerRewardsGrowth can be called for non-existed ticks",
+            "description": "There are no checks in the getInnerRewardsGrowth function that bottomTick and topTick were added to tick tree.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "EternalVirtualPool.sol"
+            ]
+        },
+        {
+            "id": "L-15",
+            "title": "The check can be made earlier to save gas",
+            "description": "The liquidity of the position check can be made earlier to save some gas.",
+            "severity": "Low",
+            "function": "",
+            "file": [
+                "AlgebraEternalFarming.sol"
+            ]
+        },
+        {
+            "id": "L-16",
+            "title": "Rebasable tokens cannot be used for rewards",
+            "description": "The current farming design doesn't allow work with rebasable tokens.",
+            "severity": "Low",
+            "function": "",
+            "file": []
+        }
+    ]
+}

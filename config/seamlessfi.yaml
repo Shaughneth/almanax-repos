@@ -1,0 +1,6 @@
+include:
+- src/*.sol
+- src/swap/*.sol
+- src/swap/adapter/*.sol
+- src/tokens/*.sol
+- src/libraries/*.sol

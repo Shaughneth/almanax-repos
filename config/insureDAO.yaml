@@ -1,0 +1,3 @@
+include:
+- contracts/*.sol
+- contracts/PremiumModels/*.sol

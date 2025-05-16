@@ -1,0 +1,6 @@
+include:
+- src/tokenomics/contracts/farmings/AlgebraEternalFarming.sol
+- src/tokenomics/contracts/farmings/EternalVirtualPool.sol
+- src/tokenomics/contracts/FarmingCenter.sol
+- src/tokenomics/contracts/base/VirtualTickStructure.sol
+- src/tokenomics/contracts/libraries/VirtualTickManagement.sol

@@ -1,0 +1,5 @@
+include:
+- sandclock/contracts/SandclockFactory.sol
+- sandclock/contracts/Vault.sol
+- sandclock/contracts/vault/*.sol
+- sandclock/contracts/strategy/*.sol

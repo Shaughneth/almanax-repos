@@ -1,0 +1,128 @@
+{
+    "title": "Arcadia Security Review",
+    "sponsor": "Arcadia",
+    "slug": "arcadia-security-review",
+    "date": "January 8th 2024 - January 26th 2024",
+    "contest": "0",
+    "findings": [
+        {
+            "id": "H-01",
+            "title": "approvedCreditor not reset after account transfer",
+            "description": "The Arcadia accounts support a secondary backup creditor which is stored in the approvedCreditor storage variable, and can be set by the owner. The issue is that when an account is transferred, this variable is not reset, and the old owner essentially can have a backdoor to the system.",
+            "severity": "High",
+            "function": "auctionBoughtIn",
+            "file": [
+                "guardians/BaseGuardian.sol"
+            ],
+            "bug_type": "Privilege Escalation"
+        },
+        {
+            "id": "M-01",
+            "title": "Contract lacks graceful retirement feature",
+            "description": "Commonly in lending platforms, when a certain token or lending pool has been deemed to be too risky or have been hacked, it is retired. This means that all deposits and borrows from the pool are stopped, however the pool is still kept in the system for users to withdraw and repay their loans. This functionality does not exist in this protocol.",
+            "severity": "Medium",
+            "function": "unpause",
+            "file": [
+                "guardians/LendingPoolGuardian.sol"
+            ]
+        },
+        {
+            "id": "M-02",
+            "title": "Tranche share ratios can be manipulated by donating via liquidations",
+            "description": "If there is a way to donate tokens, i.e. pump up the totalAssets without affecting the totalShares, the share ratio can still be manipulated. The liquidation mechanism in the contracts credits tokens to the owner of accounts if there is a surplus. This can be exploited to manipulate tranche share ratios.",
+            "severity": "Medium",
+            "function": "liquidityOfAndSync",
+            "file": [
+                "Liquidator.sol"
+            ]
+        },
+        {
+            "id": "M-03",
+            "title": "Liquidators can earn extra yield by flash depositing into tranches",
+            "description": "The liquidationPenalty part of the liquidation incentives is dealt out to the tranches as extra yield according to their weights via the _syncLiquidationFeeToLiquidityProviders function. Liquidators can snipe this extra yield at no extra cost via flash deposits in the same transaction when carrying out a liquidation.",
+            "severity": "Medium",
+            "function": "_syncLiquidationFeeToLiquidityProviders",
+            "file": [
+                "Liquidator.sol"
+            ]
+        },
+        {
+            "id": "M-04",
+            "title": "Pending interests not processed when updating treasury weight",
+            "description": "The setTreasuryWeights function sets the interest weight of the treasury but is missing the processInterests modifier. This means the next time processInterests is called, the updated treasury weights will be applied from the last interest calculation point, leading to misallocated interests.",
+            "severity": "Medium",
+            "function": "setTreasuryWeights",
+            "file": [
+                "LendingPool.sol"
+            ]
+        },
+        {
+            "id": "M-05",
+            "title": "Supporting fee-on-transfer tokens can lead to bad debt",
+            "description": "Fee-on-transfer tokens are supported by adjusting collateral and liquidation factors, but this is insufficient. FOT tokens can create discrepancies between perceived and actual holdings after deposit and withdrawals, potentially leading to bad debt positions.",
+            "severity": "Medium",
+            "function": "",
+            "file": [
+                "LendingPool.sol"
+            ]
+        },
+        {
+            "id": "M-06",
+            "title": "First Tranche depositor can withdraw all the previously earned interest",
+            "description": "A Tranche can earn interest as soon as it is added to the LendingPool, even without deposits. The first depositor can withdraw all interest earned before their deposit due to holding all the shares of the tranche.",
+            "severity": "Medium",
+            "function": "redeem",
+            "file": [
+                "LendingPool.sol"
+            ]
+        },
+        {
+            "id": "M-07",
+            "title": "Borrower pays interest on their debt while liquidation is running",
+            "description": "The LendingPool doesn't pause interest payments while a user's position is liquidated, in contrast to protocols like MakerDAO. Users can incur additional interest during the auction processing time.",
+            "severity": "Medium",
+            "function": "startLiquidation",
+            "file": [
+                "LendingPool.sol"
+            ]
+        },
+        {
+            "id": "L-01",
+            "title": "PUSH0 not supported in all chains",
+            "description": "The contracts use Solidity version 0.8.22, which can generate PUSH0 opcodes. This opcode is not supported on all chains, potentially causing deployment failures depending on the EVM configuration used during compilation.",
+            "severity": "Low",
+            "function": "",
+            "file": []
+        },
+        {
+            "id": "L-02",
+            "title": "Accounts can be sold on secondary markets while liquidations are ongoing",
+            "description": "Accounts can be transferred while an auction is ongoing since transferOwnership lacks the notDuringAuction modifier, potentially leading to scams in secondary market account trades.",
+            "severity": "Low",
+            "function": "transferOwnership",
+            "file": [
+                "accounts/AccountV1.sol"
+            ]
+        },
+        {
+            "id": "L-03",
+            "title": "Deposits / withdrawals break if all tranche weights are 0",
+            "description": "If totalInterestWeight is zero due to all tranches having zero weight, the interest calculations can break due to a division by zero in the _syncInterestsToLiquidityProviders function.",
+            "severity": "Low",
+            "function": "addTranche",
+            "file": [
+                "LendingPool.sol"
+            ]
+        },
+        {
+            "id": "L-04",
+            "title": "Accounts can keep taking more debt during ongoing auction",
+            "description": "Accounts can increase their debt during an ongoing auction as long as the health check passes, as the increaseOpenPosition function does not check for ongoing auctions.",
+            "severity": "Low",
+            "function": "increaseOpenPosition",
+            "file": [
+                "accounts/AccountV1.sol"
+            ]
+        }
+    ]
+}

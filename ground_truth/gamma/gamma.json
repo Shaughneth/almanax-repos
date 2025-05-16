@@ -1,0 +1,124 @@
+{
+    "name": "Gamma Smart Contract Audit",
+    "auditor": "Sergii Kravchenko, David Oz Kashi",
+    "findings": [
+        {
+            "id": "H-01",
+            "title": "The 'Hypervisor.deposit()' function does not check the msg.sender",
+            "description": "Hypervisor.deposit pulls pre-approved ERC20 tokens from the from address to the contract. Later it mints shares to the to address. Attackers can determine both the from and to addresses as they wish, and thus steal shares (that can be redeemed to tokens immediately) from users that pre-approved the contract to spend ERC20 tokens on their behalf.",
+            "severity": "critical",
+            "function": "Hypervisor.deposit",
+            "files": [
+                "Hypervisor.sol"
+            ],
+            "impacted_code": null,
+            "bug_type": "Privilege Escalation"
+        },
+        {
+            "id": "H-02",
+            "title": "UniProxy.depositSwap - Tokens are not approved before calling Router.exactInput",
+            "description": "The call to Router.exactInput requires the sender to pre-approve the tokens. We assume that a call to UniProxy.depositSwap will always revert.",
+            "severity": "high",
+            "function": "UniProxy.depositSwap",
+            "files": [
+                "UniProxy.sol"
+            ],
+            "impacted_code": "router = ISwapRouter (_router);\nuint256 amountOut ;\nuint256 swap;\nif(swapAmount <0){ \n    //swap token1 for token0\n    swap = uint256(swapAmount * -1); \n    IHypervisor(pos).token1().transferFrom(msg.sender,address(this),deposit1 + swap);\n    amountOut = router.exactInput(\n        ISwapRouter.ExactInputParams(\n            path,\n            address(this),\n            block.timestamp + swapLife, \n            swap, \n            deposit0\n        )\n    );\n}else{\n    //swap token1 for token0 \n    swap = uint256(swapAmount);\n    IHypervisor(pos).token0().transferFrom(msg.sender,address(this),deposit0 + swap);\n    amountOut = router.exactInput(\n        ISwapRouter.ExactInputParams(\n            path,\n            address(this),\n            block.timestamp + swapLife, \n            swap, \n            deposit1\n        )\n    );\n}",
+            "bug_type": "Contract Implementation-Specific Bug"
+        },
+        {
+            "id": "H-03",
+            "title": "Uniproxy.depositSwap - _router should not be determined by the caller",
+            "description": "Uniproxy.depositSwap uses _router that is determined by the caller, which in turn might inject a \"fake\" contract, and thus may steal funds stuck in the UniProxy contract. The UniProxy contract has certain trust assumptions regarding the router. The router is supposed to return not less than deposit1 (or deposit0 amount of tokens but that fact is never checked.",
+            "severity": "high",
+            "function": "Uniproxy.depositSwap",
+            "files": [
+                "UniProxy.sol"
+            ],
+            "impacted_code": "function depositSwap(\n    int256 swapAmount, // (-) token1, (+) token0 for token1; amount to swap\n    uint256 deposit0, \n    uint256 deposit1, \n    address to, \n    address from, \n    bytes memory path, \n    address pos, \n    address _router\n) external returns(uint256 shares){",
+            "bug_type": "Privilege Escalation"
+        },
+        {
+            "id": "H-04",
+            "title": "In function 'deposit()', Re-entrancy + flash loan attack can invalidate price check",
+            "description": "The UniProxy contract has a price manipulation protection, but after that, the tokens are transferred from the user. If the token transfer allows an attacker to hijack the call-flow of the transaction inside, the attacker can manipulate the Uniswap price there, after the check happened.",
+            "severity": "high",
+            "function": "UniProxy.deposit",
+            "files": [
+                "UniProxy.sol"
+            ],
+            "impacted_code": "if(twapCheck || positions[pos].twapOverride){\n    //check twap\n    checkPriceChange(\n        pos,\n        (positions[pos].twapOverride ? positions[pos].twapInterval : twapInterval),\n        (positions[pos].twapOverride ? positions[pos].priceThreshold : priceThreshold)\n    );\n}",
+            "bug_type": "Price Oracle Manipulation"
+        },
+        {
+            "id": "H-05",
+            "title": "The 'deposit()' function of the Hypervisor contract should only be called from UniProxy",
+            "description": "The deposit function is designed to be called only from the UniProxy contract, but everyone can call it. This function does not have any protection against price manipulation in the Uniswap pair.",
+            "severity": "high",
+            "function": "Hypervisor.deposit",
+            "files": [
+                "Hypervisor.sol"
+            ],
+            "impacted_code": null,
+            "bug_type": "Privilege Escalation"
+        },
+        {
+            "id": "H-06",
+            "title": "UniProxy.properDepositRatio() - Proper ratio will not prevent liquidity imbalance for all possible scenarios",
+            "description": "The function 'properDepositRatio()' is intended to prevent liquidity imbalance, but it fails to do so in many cases. For example, hype1/hype0 >= 10 while a huge deposit ratio might pass due to range caps.",
+            "severity": "high",
+            "function": "UniProxy.properDepositRatio",
+            "files": [
+                "UniProxy.sol"
+            ],
+            "impacted_code": "function properDepositRatio(\n    address pos, \n    uint256 deposit0, \n    uint256 deposit1\n) public view returns(bool){\n    (uint256 hype0, uint256 hype1) = IHypervisor(pos).getTotalAmounts();\n    if(IHypervisor(pos).totalSupply() != 0){\n        uint256 depositRatio = deposit0 == 0 ? 10e18 : deposit1.mul(1e18).div(deposit0);\n        depositRatio = depositRatio > 10e18 ? 10e18 : depositRatio;\n        depositRatio = depositRatio < 10e16 ? 10e16 : depositRatio;\n        uint256 hypeRatio = hype0 == 0 ? 10e18 : hype1.mul(1e18).div(hype0);\n        hypeRatio = hypeRatio > 10e18 ? 10e18 : hypeRatio;\n        hypeRatio = hypeRatio < 10e16 ? 10e16 : hypeRatio;\n        return (FullMath.mulDiv(depositRatio, deltaScale, hypeRatio) < depositDelta &&\n                FullMath.mulDiv(hypeRatio, deltaScale, depositRatio) < depositDelta);\n    }\n    return true;\n}",
+            "bug_type": "Erroneous Accounting"
+        },
+        {
+            "id": "H-07",
+            "title": "UniProxy - SafeERC20 is declared but safe functions are not used",
+            "description": "The UniProxy contract declares the usage of the SafeERC20 library for functions of the IERC20 type. However, unsafe functions are used instead of safe ones.",
+            "severity": "high",
+            "function": "UniProxy",
+            "files": [
+                "UniProxy.sol"
+            ],
+            "impacted_code": "Usage of approve instead of safeApprove\nUsage of transferFrom instead of safeTransferFrom",
+            "bug_type": "Mishandled Exception"
+        },
+        {
+            "id": "H-08",
+            "title": "Possible reentrancy in withdraw() function",
+            "description": "'withdraw()' can be used by a liquidity provider to withdraw its deposit from the Hypervisor contract. A user can get his deposited liquidity back in exchange for the burn of his shares. An exploit can occur if token transfers allow call-flow hijack.",
+            "severity": "high",
+            "function": "Hypervisor.withdraw",
+            "files": [
+                "Hypervisor.sol"
+            ],
+            "impacted_code": null,
+            "bug_type": "Reentrancy"
+        },
+        {
+            "id": "M-01",
+            "title": "'depositSwap()' doesn’t deposit all the user’s funds",
+            "description": "When executing the swap, the minimal amount out is passed to the router,but the actual swap amount will be amountOut .But after the trade, instead of depositing amountOut, the contract tries to deposit  deposit1, which is lower. This may result in some users’ funds staying in the UniProxy contract.",
+            "severity": "medium",
+            "function": "UniProxy.depositSwap",
+            "files": [
+                "UniProxy.sol"
+            ],
+            "impacted_code": "else{\n    //swap token1 for token0\n    swap = uint256(swapAmount);\n    IHypervisor(pos).token0().transferFrom(msg.sender, address(this), deposit0 + swap);\n    amountOut = router.exactInput(\n        ISwapRouter.ExactInputParams(\n            path,\n            address(this),\n            block.timestamp + swapLife,\n            swap,\n            deposit1\n        )\n    );\n}\nrequire(amountOut > 0, 'Swap failed');\nif(positions[pos].version < 2){\n    //requires lp token transfer from proxy to msg.sender\n    shares = IHypervisor(pos).deposit(deposit0, deposit1, address(this));\n    IHypervisor(pos).transfer(to, shares);\n}"
+        },
+        {
+            "id": "M-02",
+            "title": "'swap()', 'mint()' and 'burn()' are susceptible to “sandwiching” front running attacks",
+            "description": "The amount of tokens received from UniswapV3Pool functions might be manipulated by front-runners. Calls to pool.swap, pool.mint, pool.burn are susceptible to “sandwiching” vectors.",
+            "severity": "medium",
+            "function": "Hypervisor.rebalance",
+            "files": [
+                "Hypervisor.sol"
+            ],
+            "impacted_code": "if(swapQuantity != 0){\n    pool.swap(\n        address(this),\n        swapQuantity > 0,\n        swapQuantity > 0 ? swapQuantity : -swapQuantity,\n        swapQuantity > 0 ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,\n        abi.encode(address(this))\n    );\n}\n\nfunction _mintLiquidity(\n    int24 tickLower,\n    int24 tickUpper,\n    uint128 liquidity,\n    address payer\n) internal returns(uint256 amount0, uint256 amount1){\n    if(liquidity > 0){\n        (amount0, amount1) = pool.mint(\n            address(this),\n            tickLower,\n            tickUpper,\n            liquidity,\n            abi.encode(payer)\n        );\n    }\n}\n\nfunction _burnLiquidity(\n    int24 tickLower,\n    int24 tickUpper,\n    uint128 liquidity,\n    address to,\n    bool collectAll\n) internal returns(uint256 amount0, uint256 amount1){\n    if(liquidity > 0){\n        (uint256 owed0, uint256 owed1) = pool.burn(tickLower, tickUpper, liquidity);\n        uint128 collect0 = collectAll ? type(uint128).max : _uint128Safe(owed0);\n        uint128 collect1 = collectAll ? type(uint128).max : _uint128Safe(owed1);\n        if(collect0 > 0 || collect1 > 0){\n            (amount0, amount1) = pool.collect(to, tickLower, tickUpper, collect0, collect1);\n        }\n    }\n}"
+        }
+    ]
+}
